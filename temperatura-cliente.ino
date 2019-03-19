@@ -1,48 +1,48 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
-#include "DHTesp.h"
+#include <ESP8266WiFiMulti.h>
+#include "DHT.h"
 
-const char* ssid = "www.servitux.es";
+const char* ssid = "network";
 const char* password = "password";
-DHTesp dht;
+#define DHTTYPE DHT11
+#define DHTPIN 2
+
+DHT dht(DHTPIN,DHTTYPE);
+
+ESP8266WiFiMulti wifiMulti;
+
+IPAddress staticIP(192,168,0,98);
+IPAddress gateway(192,168,0,1);
+IPAddress subnet(255,255,255,0);
 
 void setup() {
-  Serial.begin(115200);
-  delay(10);
-  
-  // Connect to WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  
-  WiFi.begin(ssid, password);
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
 
-  // Print the IP address
-  Serial.println(WiFi.localIP());
+  delay(10);  
 
-  dht.setup(2, DHTesp::DHT11); 
+  WiFi.mode(WIFI_STA);
+  WiFi.config(staticIP, gateway, subnet);
+  wifiMulti.addAP(ssid,password);
+  
+  dht.begin();
 }
 
 void loop() {
 
+    if (wifiMulti.run() != WL_CONNECTED) {    
+      delay(1000);
+    }
+
+    delay(60000);
+
     WiFiClient client;
     HTTPClient http;
 
-    delay(dht.getMinimumSamplingPeriod());
+    float humidity = dht.readHumidity();
+    float temperature = dht.readTemperature();
 
-    float humidity = dht.getHumidity();
-    float temperature = dht.getTemperature();
-
-    String web = "http://10.6.0.20/?t=";
+    String web = "http://192.168.0.2/temp.php?t=";
     web += temperature;
     web += "&h=";
     web += humidity;
@@ -51,6 +51,5 @@ void loop() {
       int httpCode = http.GET(); 
       http.end();      
     }
-    delay(60000);
-
+    client.stop();
 }
